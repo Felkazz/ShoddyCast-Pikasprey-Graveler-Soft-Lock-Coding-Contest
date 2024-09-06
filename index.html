@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <!--
+            This is where the main code runs, it was made here in the HTML in order to use
+            a "trick" that allows to use Web Workers without setting a local server
+        -->
+        <script id="worker" type="javascript/worker">
+            // Creating the function that will run when the Web Worker receives a message
+            self.onmessage = function(e) {
+                // Storing the time the function started to run to calculate total time later
+                const startTime = Date.now()
+                // The amount of rolls to do is received by the Worker from the main thread
+                const maxRolls = e.data[0];
+                // From here on, it is almost the same as the original code, but adapting it
+                // to Javascript
+                // the items array  was removed in favor or generating a random index instead
+                // of picking a random element from an array
+                let numbers = [0, 0, 0, 0];
+                let rolls = 0;
+                let maxOnes = 0;
+                // This variable is used to determine when to send a progress update to the
+                // main thread
+                let progressStep = Math.trunc(maxRolls / 1000);
+                for(; numbers[0] < 177 && rolls < maxRolls; rolls++) {
+                    numbers = [0, 0, 0, 0];
+                    for(let i = 0; i < 231; i++) {
+                        // Small optmization here using ~~ (double bitwise NOT operator) to
+                        // truncate the random value generated, this only works because the
+                        // value generated is small
+                        const roll = ~~(Math.random() * numbers.length);
+                        numbers[roll]++;
+                    }
+                    if(numbers[0] > maxOnes) {
+                        maxOnes = numbers[0];
+                    }
+                    // Sending progress update to the main thread
+                    if(rolls % progressStep === 0) {
+                        // The 0 means the code hasn't finished running
+                        self.postMessage([0, maxOnes, rolls, startTime]);
+                    }
+                }
+                // Finished running, sending final update to the main thread
+                // The 1 means the code finished running
+                self.postMessage([1, maxOnes, rolls, startTime]);
+            }
+        </script>
+        <script src="index.js"></script>
+    </head>
+    <body>
+        <!-- UI -->
+        <p>Total Sessions: <input type="number" name="totalSessions" id="totalSessions" value="1000000"></p>
+        <p><button id="run">Run</button></p>
+        <p>Sessions tried: <span id="sessionsTried"></span></p>
+        <p>Highest Ones Roll: <span id="highest"></span></p>
+        <p>Number of roll sessions: <span id="sessions"></span></p>
+        <p>Elapsed time: <span id="time"></span></p>
+    </body>
+</html>
